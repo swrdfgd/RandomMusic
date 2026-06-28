@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generative Music - Tema Rezqbt (Random Progression)</title>
+    <!-- Muat Tone.js dari CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <!-- Muat file lokal Tonejs-Instruments.js -->
+    <script src="Tonejs-Instruments.js"></script>
+    
+    <style>
+        /* TEMA REZQBT: Modern, Gelap, Responsif, dengan aksen Neon */
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-1: #06b6d4; /* Cyan */
+            --accent-2: #8b5cf6; /* Purple */
+            --danger: #f43f5e;
+            --success: #10b981;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background-color: var(--card-bg);
+            border-radius: 16px;
+            padding: 40px 30px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 
+                        0 0 20px rgba(6, 182, 212, 0.1);
+            text-align: center;
+            border-top: 4px solid var(--accent-1);
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            background: linear-gradient(to right, var(--accent-1), var(--accent-2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            margin-bottom: 30px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        @media (max-width: 480px) {
+            .controls {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        button {
+            padding: 15px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        #startBtn {
+            background-color: var(--accent-1);
+            color: #000;
+            grid-column: 1 / -1;
+        }
+
+        #startBtn:hover:not(:disabled) {
+            background-color: #08cadd;
+            transform: translateY(-2px);
+        }
+
+        #stopBtn {
+            background-color: var(--danger);
+            color: white;
+        }
+
+        #stopBtn:hover:not(:disabled) {
+            background-color: #ff1c45;
+            transform: translateY(-2px);
+        }
+
+        #downloadBtn {
+            background-color: var(--success);
+            color: white;
+        }
+
+        #downloadBtn:hover:not(:disabled) {
+            background-color: #0fa674;
+            transform: translateY(-2px);
+        }
+
+        .status-box {
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: var(--accent-1);
+            min-height: 100px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .info-pill {
+            display: inline-block;
+            background: rgba(139, 92, 246, 0.2);
+            color: #c4b5fd;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            margin: 4px;
+        }
+
+        .progression-badge {
+            background: rgba(6, 182, 212, 0.15);
+            color: #22d3ee;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 0.85rem;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Random Music Generator</h1>
+        <p class="subtitle">Distribusi Geometrik & Progresi Chord Acak<br>(Tema Rezqbt & Fitur Download)</p>
+        
+        <div class="controls">
+            <button id="startBtn">▶ Mulai & Rekam Musik</button>
+            <button id="stopBtn" disabled>■ Berhenti</button>
+            <button id="downloadBtn" disabled>↓ Download Hasil</button>
+        </div>
+        
+        <div class="status-box">
+            <div id="statusText">Sistem siap. Klik 'Mulai' untuk membuat musik acak.</div>
+            <div id="progressionInfo" style="display: none;"></div>
+            <div id="instrumentInfo" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        // 1. KATEGORISASI INSTRUMEN 
+        const categories = {
+            harmonic: ['guitar-acoustic', 'guitar-electric', 'guitar-nylon', 'harmonium', 'harp', 'organ', 'piano'],
+            melodic: ['bassoon', 'clarinet', 'flute', 'french-horn', 'saxophone', 'trombone', 'trumpet', 'tuba', 'violin', 'xylophone'],
+            rhythmic: ['bass-electric', 'cello', 'contrabass'] 
+        };
+
+        // 2. POOL PROGRESI CHORD ACAK (Menggunakan Teori Musik Harmonis)
+        const progressionPool = [
+            {
+                name: "C Major Pop (I - V - vi - IV)",
+                chords: [['C4', 'E4', 'G4'], ['G3', 'B3', 'D4'], ['A3', 'C4', 'E4'], ['F3', 'A3', 'C4']],
+                bass: ['C2', 'G1', 'A1', 'F1'],
+                scale: ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5']
+            },
+            {
+                name: "A Minor Emotional (i - VI - III - VII)",
+                chords: [['A3', 'C4', 'E4'], ['F3', 'A3', 'C4'], ['C4', 'E4', 'G4'], ['G3', 'B3', 'D4']],
+                bass: ['A1', 'F1', 'C2', 'G1'],
+                scale: ['A3', 'B3', 'C4', 'D4', 'E4', 'F4', 'G4', 'A4']
+            },
+            {
+                name: "G Major Bright (I - vi - IV - V)",
+                chords: [['G3', 'B3', 'D4'], ['E3', 'G3', 'B3'], ['C4', 'E4', 'G4'], ['D4', 'F#4', 'A4']],
+                bass: ['G1', 'E1', 'C2', 'D2'],
+                scale: ['G3', 'A3', 'B3', 'C4', 'D4', 'E4', 'F#4', 'G4']
+            },
+            {
+                name: "D Minor Epic (i - VII - VI - v)",
+                chords: [['D4', 'F4', 'A4'], ['C4', 'E4', 'G4'], ['A#3', 'D4', 'F4'], ['A3', 'C4', 'E4']],
+                bass: ['D2', 'C2', 'A#1', 'A1'],
+                scale: ['D4', 'E4', 'F4', 'G4', 'A4', 'A#4', 'C5', 'D5']
+            },
+            {
+                name: "C Major Jazz/Neo-Soul (ii - V - I - vi)",
+                chords: [['D4', 'F4', 'A4'], ['G3', 'B3', 'D4'], ['C4', 'E4', 'G4'], ['A3', 'C4', 'E4']],
+                bass: ['D2', 'G1', 'C2', 'A1'],
+                scale: ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5']
+            }
+        ];
+
+        // 3. FUNGSI DISTRIBUSI GEOMETRIK
+        function getGeometricX(p = 0.5) {
+            let count = 1;
+            while (Math.random() > p) {
+                count++;
+            }
+            return Math.min(count, 5); 
+        }
+
+        function getRandomItem(arr) {
+            return arr[Math.floor(Math.random() * arr.length)];
+        }
+
+        // Variabel global
+        let loadedInstruments = {};
+        const recorder = new Tone.Recorder();
+        let recordingUrl = null;
+        let loopEventId = null;
+
+        const limiter = new Tone.Limiter(-2).toDestination();
+        Tone.Destination.connect(recorder);
+
+        const statusText = document.getElementById('statusText');
+        const progressionInfo = document.getElementById('progressionInfo');
+        const instrumentInfo = document.getElementById('instrumentInfo');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        async function generateAndPlay() {
+            startBtn.disabled = true;
+            downloadBtn.disabled = true;
+            instrumentInfo.style.display = 'none';
+            progressionInfo.style.display = 'none';
+            statusText.innerText = "Mengacak progresi & instrumen...";
+
+            // PILIH PROGRESI CHORD ACAK DARI POOL
+            const currentProgression = getRandomItem(progressionPool);
+
+            // Hitung X instrumen memakai distribusi geometrik
+            const X = getGeometricX(0.4); 
+            let selectedRoles = [];
+            let instrumentsToLoad = [];
+
+            if (X >= 1) selectedRoles.push('harmonic');
+            if (X >= 2) selectedRoles.push('melodic');
+            if (X >= 3) selectedRoles.push('rhythmic');
+            if (X >= 4) selectedRoles.push('melodic'); 
+            if (X === 5) selectedRoles.push('harmonic');
+
+            selectedRoles.forEach(role => {
+                let instName = getRandomItem(categories[role]);
+                instrumentsToLoad.push({ name: instName, role: role });
+            });
+
+            const uniqueInstruments = [...new Set(instrumentsToLoad.map(i => i.name))];
+            statusText.innerText = `Memuat ${uniqueInstruments.length} sampel instrumen... Mohon tunggu.`;
+
+            // Reset Transport & Memori
+            Tone.Transport.stop();
+            Tone.Transport.cancel(0);
+            Object.values(loadedInstruments).forEach(inst => inst.dispose()); 
+            loadedInstruments = {};
+
+            SampleLibrary.minify = true; 
+            
+            try {
+                loadedInstruments = SampleLibrary.load({
+                    instruments: uniqueInstruments,
+                    baseUrl: "samples/"
+                });
+                await Tone.loaded(); 
+            } catch (error) {
+                statusText.innerText = "Gagal memuat sampel. Pastikan folder 'samples' tersedia.";
+                startBtn.disabled = false;
+                console.error(error);
+                return;
+            }
+
+            // Tambahkan Efek Reverb Studio
+            const reverb = new Tone.Reverb({ decay: 3.0, preDelay: 0.1, wet: 0.35 }).connect(limiter);
+            await reverb.generate(); 
+
+            if (uniqueInstruments.length === 1) {
+                loadedInstruments.connect(reverb);
+                loadedInstruments.connect(limiter);
+            } else {
+                Object.values(loadedInstruments).forEach(inst => {
+                    inst.connect(reverb);
+                    inst.connect(limiter);
+                });
+            }
+
+            // Mulai memutar & merekam audio
+            await Tone.start(); 
+            recorder.start();
+
+            statusText.innerText = "Sedang Memutar & Merekam...";
+            
+            // Tampilkan Progresi yang terpilih acak
+            progressionInfo.style.display = 'block';
+            progressionInfo.innerHTML = `<span class="progression-badge">🎵 Progresi: ${currentProgression.name}</span>`;
+
+            // Tampilkan Instrumen yang terpilih acak
+            instrumentInfo.style.display = 'block';
+            instrumentInfo.innerHTML = `
+                <div class="info-pill">Harmonis: ${instrumentsToLoad.filter(i=>i.role==='harmonic').map(i=>i.name).join(', ') || '-'}</div>
+                <div class="info-pill">Melodis: ${instrumentsToLoad.filter(i=>i.role==='melodic').map(i=>i.name).join(', ') || '-'}</div>
+                <div class="info-pill">Ritmis: ${instrumentsToLoad.filter(i=>i.role==='rhythmic').map(i=>i.name).join(', ') || '-'}</div>
+            `;
+
+            let step = 0;
+
+            loopEventId = Tone.Transport.scheduleRepeat((time) => {
+                let measureIndex = Math.floor(step / 8) % 4; 
+                let beatIndex = step % 8;
+
+                let currentChord = currentProgression.chords[measureIndex];
+                let currentBass = currentProgression.bass[measureIndex];
+                let currentScale = currentProgression.scale;
+
+                // --- HARMONIS (Chord) ---
+                if (beatIndex === 0) { 
+                    let harmonics = instrumentsToLoad.filter(i => i.role === 'harmonic');
+                    harmonics.forEach(h => {
+                        let inst = uniqueInstruments.length === 1 ? loadedInstruments : loadedInstruments[h.name];
+                        inst.triggerAttackRelease(currentChord, "1n", time, 0.55); 
+                    });
+                }
+
+                // --- RITMIS (Bass) ---
+                if (beatIndex % 2 === 0 || beatIndex === 3 || beatIndex === 7) { 
+                    if (Math.random() > 0.25) { 
+                        let rhythmics = instrumentsToLoad.filter(i => i.role === 'rhythmic');
+                        rhythmics.forEach(r => {
+                            let inst = uniqueInstruments.length === 1 ? loadedInstruments : loadedInstruments[r.name];
+                            inst.triggerAttackRelease(currentBass, "8n", time, 0.75);
+                        });
+                    }
+                }
+
+                // --- MELODIS ---
+                let melodics = instrumentsToLoad.filter(i => i.role === 'melodic');
+                melodics.forEach(m => {
+                    if (Math.random() > 0.65) {
+                        let inst = uniqueInstruments.length === 1 ? loadedInstruments : loadedInstruments[m.name];
+                        let randomMelodyNote = getRandomItem(currentScale);
+                        inst.triggerAttackRelease(randomMelodyNote, "8n", time, 0.45);
+                    }
+                });
+
+                step++;
+            }, "8n");
+
+            Tone.Transport.bpm.value = 95; 
+            Tone.Transport.start();
+
+            stopBtn.disabled = false;
+        }
+
+        async function stopAndDownload() {
+            stopBtn.disabled = true;
+            statusText.innerText = "Menghentikan musik & memproses audio...";
+
+            Tone.Transport.stop();
+            if (loopEventId !== null) {
+                Tone.Transport.clear(loopEventId);
+            }
+
+            setTimeout(async () => {
+                const recording = await recorder.stop();
+                recordingUrl = URL.createObjectURL(recording);
+                
+                statusText.innerText = "Musik dihentikan. File audio siap didownload!";
+                startBtn.disabled = false;
+                downloadBtn.disabled = false;
+            }, 600); 
+        }
+
+        function downloadAudio() {
+            if (!recordingUrl) return;
+            const anchor = document.createElement("a");
+            anchor.download = "GenerativeMusic_Rezqbt_RandomProg.webm"; 
+            anchor.href = recordingUrl;
+            anchor.click();
+        }
+
+        startBtn.addEventListener('click', generateAndPlay);
+        stopBtn.addEventListener('click', stopAndDownload);
+        downloadBtn.addEventListener('click', downloadAudio);
+    </script>
+</body>
+</html>
